@@ -8,8 +8,8 @@ import com.yifan.simple.hadoop.protocol.RpcRequest;
 import com.yifan.simple.hadoop.protocol.RpcResponse;
 import com.yifan.simple.hadoop.serde.JsonSerialization;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -17,14 +17,26 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 定义NettyRPC服务端 NettyRPCServer
  **/
-public class NettyRPCServer implements RpcServer {
+public class NettyRPCServer implements RpcServer, ApplicationContextAware, InitializingBean {
+    private static final Logger logger = LoggerFactory.getLogger(NettyRPCServer.class);
 
     private String hostname;
     private int port;
+
+    private Map<String, Object> handlerMap = new HashMap<>();
 
     public NettyRPCServer(String hostname, int port) {
         this.hostname = hostname;
@@ -34,6 +46,23 @@ public class NettyRPCServer implements RpcServer {
     public NettyRPCServer() {
         this.hostname = NettyProperties.REMOTE_HOST;
         this.port = NettyProperties.PORT;
+    }
+
+    @Override
+    public void setApplicationContext(ApplicationContext ctx) throws BeansException {
+        Map<String, Object> serviceBeanMap = ctx.getBeansWithAnnotation(RpcService.class);
+        if (serviceBeanMap.size() > 0) {
+            for (Object serviceBean : serviceBeanMap.values()) {
+                String interfaceName = serviceBean.getClass().getAnnotation(RpcService.class).value().getName();
+                logger.info("Loading service: {}", interfaceName);
+                handlerMap.put(interfaceName, serviceBean);
+            }
+        }
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        serverStart();
     }
 
     @Override
@@ -71,13 +100,15 @@ public class NettyRPCServer implements RpcServer {
 
         // 给启动类 ServerBootstrap 配置一些参数
         serverBootstrap.group(bossGroup, workerGroup).channel(NioServerSocketChannel.class)
-                .handler(new LoggingHandler(LogLevel.DEBUG)).childHandler(serverInitializer);
+                .handler(new LoggingHandler(LogLevel.DEBUG)).childHandler(serverInitializer)
+                .option(ChannelOption.SO_BACKLOG, 128)
+                .childOption(ChannelOption.SO_KEEPALIVE, true);
 
         return serverBootstrap;
     }
 
     /**
-     * TODO_MA 构建 ChannelInitializer
+     * 构建 ChannelInitializer
      */
     @Override
     public ChannelInitializer initChannelInitializer() {
@@ -93,19 +124,10 @@ public class NettyRPCServer implements RpcServer {
                 pipeline.addLast(new RpcDecoder(RpcRequest.class, new JsonSerialization()));
 
                 // 具体处理请求的 handler 下文具体解释
-                pipeline.addLast(initServerHandler());
+                pipeline.addLast(new NettyRpcServerHandler(handlerMap));
             }
         };
 
         return serverInitializer;
-    }
-
-    /**
-     * TODO_MA 初始化一个 ChannelHandler
-     */
-    private ChannelHandler initServerHandler() {
-
-        NettyRpcServerHandler serverHandler = new NettyRpcServerHandler();
-        return serverHandler;
     }
 }

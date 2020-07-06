@@ -6,5 +6,5 @@ package com.yifan.simple.hadoop.common;
 public class NettyProperties {
 
     public static String REMOTE_HOST = "localhost";
-    public static int PORT = 6789;
+    public static int PORT = 18866;
 }
