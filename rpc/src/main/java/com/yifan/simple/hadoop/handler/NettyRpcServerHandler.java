@@ -13,7 +13,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 
 /**
- *
+ * RPC Handler（RPC request processor）
  **/
 public class NettyRpcServerHandler extends ChannelInboundHandlerAdapter {
     private static final Logger logger = LoggerFactory.getLogger(NettyRpcServerHandler.class);
