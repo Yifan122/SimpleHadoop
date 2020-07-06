@@ -1,2 +1,3 @@
 # Project exclude paths
 /rpc/target/
+/.idea/
