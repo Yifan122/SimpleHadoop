@@ -9,3 +9,6 @@
 
 * 修改 hdfs-site.xml
     - dfs.namenode.name.dir
+    
+* 第一次运行NameNode
+    - 需要初始化 NameNode -format
