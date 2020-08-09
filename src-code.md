@@ -12,3 +12,9 @@
     
 * 第一次运行NameNode
     - 需要初始化 NameNode -format
+  
+ * name.dir for WINDOWS
+ ```xml
+    <name>dfs.namenode.name.dir</name>
+    <value>/D:/dfs/nn</value>
+```
